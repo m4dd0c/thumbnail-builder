@@ -77,8 +77,15 @@ public class ThumbnailWorkerService : BackgroundService
             job.Status = JobStatus.Processing;
             await context.SaveChangesAsync(cancellationToken);
 
+            // Build the enhanced prompt with YouTube thumbnail context
+            var enhancedPrompt = BuildYouTubeThumbnailPrompt(job.Prompt, job.InputImageBase64);
+
             // Call Gemini API to generate images
-            var images = await geminiService.GenerateImagesAsync(job.Prompt, 2);
+            var images = await geminiService.GenerateImagesAsync(
+                enhancedPrompt,
+                job.InputImageBase64, // Pass the input image if available
+                2
+            );
 
             // Store images in database
             if (images.Count >= 1)
@@ -118,5 +125,32 @@ public class ThumbnailWorkerService : BackgroundService
                 _logger.LogError(saveEx, "Failed to update job {JobId} status to Failed", jobId);
             }
         }
+    }
+
+    /// <summary>
+    /// Builds an enhanced prompt with YouTube thumbnail best practices
+    /// </summary>
+    private string BuildYouTubeThumbnailPrompt(string userPrompt, string? inputImage)
+    {
+        var systemContext =
+            @"Create a YouTube thumbnail that follows these best practices:
+- Eye-catching and attention-grabbing design
+- Always generate 16:9 ratio thumbnail
+- Bold, readable text that stands out
+- High contrast colors for visibility
+- Clear focal point (face, product, or main subject)
+- Professional quality and composition
+- Optimized for small screens (mobile-friendly)
+- Conveys the video's content at a glance";
+
+        if (!string.IsNullOrEmpty(inputImage))
+        {
+            systemContext +=
+                @"
+- Use the provided reference image as a style guide or incorporate its elements
+- Match the aesthetic, color scheme, or composition of the reference image";
+        }
+
+        return $"{systemContext}\n\nUser Request: {userPrompt}";
     }
 }

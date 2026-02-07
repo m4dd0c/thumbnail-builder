@@ -49,6 +49,7 @@ public class ThumbnailController : ControllerBase
             Id = Guid.NewGuid(),
             UserId = userId,
             Prompt = request.Prompt,
+            InputImageBase64 = request.Image, // Save the optional input image
             Status = JobStatus.Pending,
             CreatedAt = DateTime.UtcNow,
         };

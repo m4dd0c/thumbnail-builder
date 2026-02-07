@@ -21,6 +21,8 @@ public class ThumbnailJob
 
     public string? Image2Base64 { get; set; }
 
+    public string? InputImageBase64 { get; set; }
+
     public string? ErrorMessage { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -3,6 +3,7 @@ import { apiClient } from "./api";
 // Type Definitions
 export interface CreateThumbnailRequest {
   prompt: string;
+  image?: string; // Optional base64 image for style transfer
 }
 
 export interface ThumbnailJobResponse {
@@ -28,11 +29,16 @@ export const JobStatus = {
 class ThumbnailService {
   /**
    * Create a new thumbnail generation job
+   * @param prompt - The text prompt for generation
+   * @param image - Optional base64 image for style transfer
    */
-  async createThumbnail(prompt: string): Promise<ThumbnailJobResponse> {
+  async createThumbnail(
+    prompt: string,
+    image?: string,
+  ): Promise<ThumbnailJobResponse> {
     return apiClient.post<ThumbnailJobResponse>(
       "/thumbnail",
-      { prompt } as CreateThumbnailRequest,
+      { prompt, image } as CreateThumbnailRequest,
       true, // requires auth
     );
   }

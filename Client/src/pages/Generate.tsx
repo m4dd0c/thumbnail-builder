@@ -1,8 +1,16 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { DragEvent, ChangeEvent, FormEvent } from "react";
 import { thumbnailService } from "../services/thumbnail";
 import { libraryService } from "../services/library";
 import type { ApiError } from "../services/api";
+
+// LocalStorage keys
+const STORAGE_KEYS = {
+  PROMPT: "thumbnail_generator_prompt",
+  ACTIVE_JOB: "thumbnail_generator_active_job",
+  GENERATED_IMAGES: "thumbnail_generator_images",
+  UPLOADED_IMAGE: "thumbnail_generator_uploaded_image",
+} as const;
 
 // Default prompt suggestions
 const defaultPrompts = [
@@ -14,16 +22,112 @@ const defaultPrompts = [
 ];
 
 export default function Generate() {
-  const [prompt, setPrompt] = useState("");
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  // Initialize state from localStorage
+  const [prompt, setPrompt] = useState(() => {
+    return localStorage.getItem(STORAGE_KEYS.PROMPT) || "";
+  });
+  const [uploadedImage, setUploadedImage] = useState<string | null>(() => {
+    return localStorage.getItem(STORAGE_KEYS.UPLOADED_IMAGE) || null;
+  });
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<string[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.GENERATED_IMAGES);
+    return saved ? JSON.parse(saved) : [];
+  });
   const [error, setError] = useState<string | null>(null);
   const [generationStatus, setGenerationStatus] = useState<string>("");
   const [savingIndex, setSavingIndex] = useState<number | null>(null);
   const [savedImages, setSavedImages] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Persist prompt to localStorage
+  useEffect(() => {
+    if (prompt) {
+      localStorage.setItem(STORAGE_KEYS.PROMPT, prompt);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.PROMPT);
+    }
+  }, [prompt]);
+
+  // Persist uploaded image to localStorage
+  useEffect(() => {
+    if (uploadedImage) {
+      localStorage.setItem(STORAGE_KEYS.UPLOADED_IMAGE, uploadedImage);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.UPLOADED_IMAGE);
+    }
+  }, [uploadedImage]);
+
+  // Persist generated images to localStorage
+  useEffect(() => {
+    if (generatedImages.length > 0) {
+      localStorage.setItem(
+        STORAGE_KEYS.GENERATED_IMAGES,
+        JSON.stringify(generatedImages),
+      );
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.GENERATED_IMAGES);
+    }
+  }, [generatedImages]);
+
+  // Resume polling for active job on mount
+  useEffect(() => {
+    const resumeActiveJob = async () => {
+      const activeJobId = localStorage.getItem(STORAGE_KEYS.ACTIVE_JOB);
+      if (!activeJobId) return;
+
+      setIsGenerating(true);
+      setGenerationStatus("Resuming generation...");
+
+      try {
+        // Check current job status
+        const statusResponse = await thumbnailService.getJobStatus(activeJobId);
+
+        if (statusResponse.status === "Completed" && statusResponse.images) {
+          setGeneratedImages(statusResponse.images);
+          setGenerationStatus("Generation complete!");
+          localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+        } else if (statusResponse.status === "Failed") {
+          setError(
+            statusResponse.errorMessage ||
+              "Generation failed. Please try again.",
+          );
+          localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+        } else {
+          // Job still processing, continue polling
+          setGenerationStatus("Processing your request...");
+          const finalStatus = await thumbnailService.pollJobStatus(
+            activeJobId,
+            60,
+            2000,
+          );
+
+          if (finalStatus.status === "Completed" && finalStatus.images) {
+            setGeneratedImages(finalStatus.images);
+            setGenerationStatus("Generation complete!");
+          } else if (finalStatus.status === "Failed") {
+            setError(
+              finalStatus.errorMessage ||
+                "Generation failed. Please try again.",
+            );
+          }
+          localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+        }
+      } catch (err) {
+        const apiError = err as ApiError;
+        setError(
+          apiError.message || "Failed to resume generation. Please try again.",
+        );
+        localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+      } finally {
+        setIsGenerating(false);
+        setGenerationStatus("");
+      }
+    };
+
+    resumeActiveJob();
+  }, []); // Run only on mount
 
   // Handle file upload
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -73,8 +177,15 @@ export default function Generate() {
     setGenerationStatus("Creating job...");
 
     try {
-      // Create thumbnail generation job
-      const jobResponse = await thumbnailService.createThumbnail(prompt);
+      // Create thumbnail generation job with optional image
+      const jobResponse = await thumbnailService.createThumbnail(
+        prompt,
+        uploadedImage || undefined, // Pass the uploaded image if available
+      );
+
+      // Save job ID to localStorage so we can resume if user navigates away
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_JOB, jobResponse.jobId);
+
       setGenerationStatus("Processing your request...");
 
       // Poll for job completion
@@ -87,16 +198,22 @@ export default function Generate() {
       if (statusResponse.status === "Completed" && statusResponse.images) {
         setGeneratedImages(statusResponse.images);
         setGenerationStatus("Generation complete!");
+        // Clear active job from localStorage
+        localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
       } else if (statusResponse.status === "Failed") {
         setError(
           statusResponse.errorMessage || "Generation failed. Please try again.",
         );
+        // Clear active job from localStorage
+        localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
       }
     } catch (err) {
       const apiError = err as ApiError;
       setError(
         apiError.message || "Failed to generate thumbnails. Please try again.",
       );
+      // Clear active job from localStorage on error
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
     } finally {
       setIsGenerating(false);
       setGenerationStatus("");
@@ -135,6 +252,22 @@ export default function Generate() {
       alert(apiError.message || "Failed to save image to library");
     } finally {
       setSavingIndex(null);
+    }
+  };
+
+  // Clear all state and localStorage
+  const clearAll = () => {
+    setPrompt("");
+    setUploadedImage(null);
+    setGeneratedImages([]);
+    setError(null);
+    setSavedImages(new Set());
+    localStorage.removeItem(STORAGE_KEYS.PROMPT);
+    localStorage.removeItem(STORAGE_KEYS.UPLOADED_IMAGE);
+    localStorage.removeItem(STORAGE_KEYS.GENERATED_IMAGES);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -267,16 +400,28 @@ export default function Generate() {
             )}
           </div>
 
-          {/* Generate Button */}
-          <button
-            type="submit"
-            disabled={isGenerating || !prompt.trim()}
-            className="button"
-          >
-            <span className="relative z-10">
-              {isGenerating ? "Generating..." : "Generate Thumbnails"}
-            </span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            <button
+              type="submit"
+              disabled={isGenerating || !prompt.trim()}
+              className="button flex-1"
+            >
+              <span className="relative z-10">
+                {isGenerating ? "Generating..." : "Generate Thumbnails"}
+              </span>
+            </button>
+            {(prompt || uploadedImage || generatedImages.length > 0) && (
+              <button
+                type="button"
+                onClick={clearAll}
+                disabled={isGenerating}
+                className="border border-gray-300 bg-white px-6 py-3 text-sm font-medium text-black transition-all duration-200 hover:border-black hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
         </form>
 
         {/* Generated Images */}

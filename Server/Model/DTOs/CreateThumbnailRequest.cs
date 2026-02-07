@@ -8,4 +8,9 @@ public class CreateThumbnailRequest
     [MinLength(3, ErrorMessage = "Prompt must be at least 3 characters")]
     [MaxLength(1000, ErrorMessage = "Prompt must not exceed 1000 characters")]
     public required string Prompt { get; set; }
+
+    /// <summary>
+    /// Optional base64-encoded reference image for style transfer or image-to-image generation
+    /// </summary>
+    public string? Image { get; set; }
 }
