@@ -1,5 +1,8 @@
 import { useState, useRef } from "react";
 import type { DragEvent, ChangeEvent, FormEvent } from "react";
+import { thumbnailService } from "../services/thumbnail";
+import { libraryService } from "../services/library";
+import type { ApiError } from "../services/api";
 
 // Default prompt suggestions
 const defaultPrompts = [
@@ -16,6 +19,10 @@ export default function Generate() {
   const [isDragging, setIsDragging] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [generationStatus, setGenerationStatus] = useState<string>("");
+  const [savingIndex, setSavingIndex] = useState<number | null>(null);
+  const [savedImages, setSavedImages] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle file upload
@@ -62,22 +69,37 @@ export default function Generate() {
 
     setIsGenerating(true);
     setGeneratedImages([]);
+    setError(null);
+    setGenerationStatus("Creating job...");
 
     try {
-      // Simulate API call - Replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Create thumbnail generation job
+      const jobResponse = await thumbnailService.createThumbnail(prompt);
+      setGenerationStatus("Processing your request...");
 
-      // Mock generated images - Replace with actual API response
-      const mockImages = [
-        "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&h=450&fit=crop",
-        "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=800&h=450&fit=crop",
-      ];
+      // Poll for job completion
+      const statusResponse = await thumbnailService.pollJobStatus(
+        jobResponse.jobId,
+        60, // max 60 attempts
+        2000, // poll every 2 seconds
+      );
 
-      setGeneratedImages(mockImages);
-    } catch (error) {
-      console.error("Generation failed:", error);
+      if (statusResponse.status === "Completed" && statusResponse.images) {
+        setGeneratedImages(statusResponse.images);
+        setGenerationStatus("Generation complete!");
+      } else if (statusResponse.status === "Failed") {
+        setError(
+          statusResponse.errorMessage || "Generation failed. Please try again.",
+        );
+      }
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(
+        apiError.message || "Failed to generate thumbnails. Please try again.",
+      );
     } finally {
       setIsGenerating(false);
+      setGenerationStatus("");
     }
   };
 
@@ -86,6 +108,33 @@ export default function Generate() {
     setUploadedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  // Download image
+  const handleDownload = (imageUrl: string, index: number) => {
+    const link = document.createElement("a");
+    link.href = imageUrl;
+    link.download = `thumbnail-${Date.now()}-${index + 1}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Save to library
+  const handleSaveToLibrary = async (imageBase64: string, index: number) => {
+    setSavingIndex(index);
+    try {
+      await libraryService.saveImage(
+        imageBase64,
+        `Generated Thumbnail - ${new Date().toLocaleDateString()}`,
+      );
+      setSavedImages((prev) => new Set(prev).add(index));
+    } catch (err) {
+      const apiError = err as ApiError;
+      alert(apiError.message || "Failed to save image to library");
+    } finally {
+      setSavingIndex(null);
     }
   };
 
@@ -100,6 +149,14 @@ export default function Generate() {
             Describe your vision and let AI create stunning thumbnails
           </p>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-8 border border-red-300 bg-red-50 p-4 text-red-700">
+            <p className="font-medium">Error</p>
+            <p className="mt-1 text-sm">{error}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Prompt Textarea */}
@@ -242,15 +299,22 @@ export default function Generate() {
                   <div className="flex gap-2 p-4">
                     <button
                       type="button"
+                      onClick={() => handleDownload(image, index)}
                       className="flex-1 border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-black transition-all duration-200 hover:border-black hover:bg-gray-50"
                     >
                       Download
                     </button>
                     <button
                       type="button"
-                      className="flex-1 bg-black px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+                      onClick={() => handleSaveToLibrary(image, index)}
+                      disabled={savingIndex === index || savedImages.has(index)}
+                      className="flex-1 bg-black px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Save to Library
+                      {savingIndex === index
+                        ? "Saving..."
+                        : savedImages.has(index)
+                          ? "Saved ✓"
+                          : "Save to Library"}
                     </button>
                   </div>
                 </div>
@@ -264,7 +328,7 @@ export default function Generate() {
           <div className="mt-12 text-center">
             <div className="inline-block h-12 w-12 animate-spin border-4 border-gray-300 border-t-black"></div>
             <p className="mt-4 text-lg text-gray-600">
-              Creating your thumbnails...
+              {generationStatus || "Creating your thumbnails..."}
             </p>
           </div>
         )}
