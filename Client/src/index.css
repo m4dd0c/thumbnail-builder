@@ -43,7 +43,7 @@
 
 @layer base {
   body {
-    @apply font-sans antialiased text-black bg-white;
+    @apply font-sans antialiased text-black bg-white selection:text-white selection:bg-black/85;
   }
 }
 

@@ -29,7 +29,6 @@ export default function Header() {
               { name: "Generate", path: "/generate" },
               { name: "Library", path: "/library" },
               { name: "Features", path: "/features" },
-              { name: "Pricing", path: "/pricing" },
               { name: "About", path: "/about" },
             ].map((item) => (
               <li key={item.name}>
@@ -45,7 +44,9 @@ export default function Header() {
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
             <>
-              <span className="text-sm text-gray-600">{user?.email}</span>
+              <span className="text-sm text-gray-600">
+                {user?.email.split("@")[0]}
+              </span>
               <button
                 type="button"
                 onClick={handleLogout}
