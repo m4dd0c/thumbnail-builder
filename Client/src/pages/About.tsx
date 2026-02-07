@@ -77,7 +77,7 @@ export default function About() {
                 key={index}
                 className="group relative overflow-hidden border border-gray-200 p-8 transition-all duration-300 hover:border-black hover:shadow-lg"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-linear-to-br from-gray-50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
                 <div className="relative">
                   <div className="mb-4 inline-block border-b-2 border-black pb-2">
@@ -99,7 +99,7 @@ export default function About() {
       </section>
 
       {/* Technology Section */}
-      <section className="border-t border-gray-200 bg-gradient-to-b from-white to-gray-50 px-4 py-20">
+      <section className="border-t border-gray-200 bg-linear-to-b from-white to-gray-50 px-4 py-20">
         <div className="mx-auto max-w-4xl">
           <div className="text-center mb-12">
             <h2 className="mb-4 text-4xl font-bold text-black">

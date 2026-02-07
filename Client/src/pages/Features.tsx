@@ -43,11 +43,11 @@ export default function Features() {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-white">
       {/* Hero Section */}
-      <section className="border-b border-gray-200 bg-gradient-to-b from-gray-50 to-white px-4 py-20">
+      <section className="border-b border-gray-200 bg-linear-to-b from-gray-50 to-white px-4 py-20">
         <div className="mx-auto max-w-4xl text-center">
           <h1 className="mb-6 text-5xl font-bold tracking-tight text-black md:text-6xl">
             Everything You Need to Create
-            <span className="block mt-2 bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+            <span className="block mt-2 bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
               Professional Thumbnails
             </span>
           </h1>
@@ -68,7 +68,7 @@ export default function Features() {
                 className="group relative overflow-hidden border border-gray-200 bg-white p-8 transition-all duration-300 hover:border-black hover:shadow-lg"
               >
                 {/* Animated background on hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="absolute inset-0 bg-linear-to-br from-gray-50 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
                 <div className="relative">
                   <div className="mb-4 inline-flex h-16 w-16 items-center justify-center bg-black text-4xl transition-transform duration-300 group-hover:scale-110">
