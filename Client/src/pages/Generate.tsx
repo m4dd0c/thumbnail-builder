@@ -3,6 +3,8 @@ import type { DragEvent, ChangeEvent, FormEvent } from "react";
 import { thumbnailService } from "../services/thumbnail";
 import { libraryService } from "../services/library";
 import type { ApiError } from "../services/api";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 // LocalStorage keys
 const STORAGE_KEYS = {
@@ -23,6 +25,7 @@ const defaultPrompts = [
 
 export default function Generate() {
   // Initialize state from localStorage
+  const route = useNavigate();
   const [prompt, setPrompt] = useState(() => {
     return localStorage.getItem(STORAGE_KEYS.PROMPT) || "";
   });
@@ -88,12 +91,24 @@ export default function Generate() {
           setGeneratedImages(statusResponse.images);
           setGenerationStatus("Generation complete!");
           localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+
+          if (window.location.pathname !== "/generate") {
+            toast.success("Generation completed!", {
+              action: {
+                label: "See Result",
+                onClick: () => route("/generate"),
+              },
+            });
+          } else {
+            toast.success("Generation completed!");
+          }
         } else if (statusResponse.status === "Failed") {
           setError(
             statusResponse.errorMessage ||
               "Generation failed. Please try again.",
           );
           localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+          toast.error("Generation failed, Please try again.");
         } else {
           // Job still processing, continue polling
           setGenerationStatus("Processing your request...");
@@ -106,6 +121,17 @@ export default function Generate() {
           if (finalStatus.status === "Completed" && finalStatus.images) {
             setGeneratedImages(finalStatus.images);
             setGenerationStatus("Generation complete!");
+
+            if (window.location.pathname !== "/generate") {
+              toast.success("Generation completed!", {
+                action: {
+                  label: "See Result",
+                  onClick: () => route("/generate"),
+                },
+              });
+            } else {
+              toast.success("Generation completed!");
+            }
           } else if (finalStatus.status === "Failed") {
             setError(
               finalStatus.errorMessage ||
@@ -113,6 +139,7 @@ export default function Generate() {
             );
           }
           localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+          toast.error("Generation failed, Please try again.");
         }
       } catch (err) {
         const apiError = err as ApiError;
@@ -200,10 +227,22 @@ export default function Generate() {
         setGenerationStatus("Generation complete!");
         // Clear active job from localStorage
         localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+
+        if (window.location.pathname !== "/generate") {
+          toast.success("Generation completed!", {
+            action: {
+              label: "See Result",
+              onClick: () => route("/generate"),
+            },
+          });
+        } else {
+          toast.success("Generation completed!");
+        }
       } else if (statusResponse.status === "Failed") {
         setError(
           statusResponse.errorMessage || "Generation failed. Please try again.",
         );
+        toast.error("Generation failed, Please try again.");
         // Clear active job from localStorage
         localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
       }
@@ -218,6 +257,10 @@ export default function Generate() {
       setIsGenerating(false);
       setGenerationStatus("");
     }
+  };
+  // Remove generated image
+  const removeGeneratedImage = (i: number) => {
+    setGeneratedImages((prev) => prev.filter((_, index) => index !== i));
   };
 
   // Remove uploaded image
@@ -436,6 +479,14 @@ export default function Generate() {
                   key={index}
                   className="group relative overflow-hidden border border-gray-300 bg-white transition-all duration-200 hover:-translate-y-px hover:shadow-md"
                 >
+                  <button
+                    type="button"
+                    onClick={() => removeGeneratedImage(index)}
+                    className="group-hover:block hidden absolute right-2 top-2 h-8 w-8 items-center justify-center bg-red-500/50 text-white cursor-pointer transition-opacity duration-200 hover:opacity-80"
+                    aria-label="Remove image"
+                  >
+                    ×
+                  </button>
                   <img
                     src={image}
                     alt={`Generated thumbnail ${index + 1}`}
@@ -445,7 +496,7 @@ export default function Generate() {
                     <button
                       type="button"
                       onClick={() => handleDownload(image, index)}
-                      className="flex-1 border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-black transition-all duration-200 hover:border-black hover:bg-gray-50"
+                      className="flex-1 border border-gray-300 cursor-pointer bg-white px-4 py-2 text-sm font-medium text-black transition-all duration-200 hover:border-black hover:bg-gray-50"
                     >
                       Download
                     </button>
@@ -453,7 +504,7 @@ export default function Generate() {
                       type="button"
                       onClick={() => handleSaveToLibrary(image, index)}
                       disabled={savingIndex === index || savedImages.has(index)}
-                      className="flex-1 bg-black px-4 py-2 text-sm font-medium text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-black px-4 py-2 text-sm cursor-pointer font-medium text-white transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {savingIndex === index
                         ? "Saving..."

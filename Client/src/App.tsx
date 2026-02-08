@@ -9,10 +9,12 @@ import Features from "./pages/Features";
 import About from "./pages/About";
 import Login from "./components/Login";
 import Register from "./components/Register";
+import { Toaster } from "sonner";
 
 function App() {
   return (
     <AuthProvider>
+      <Toaster />
       <BrowserRouter>
         <Layout>
           <Routes>
