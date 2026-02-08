@@ -69,7 +69,11 @@ public class GeminiService : IGeminiService
                 parts.Add(new { inline_data = new { mime_type = mimeType, data = imageData } });
             }
 
-            var requestBody = new { contents = new[] { new { parts } } };
+            var requestBody = new
+            {
+                contents = new[] { new { parts } },
+                generationConfig = new { imageConfig = new { aspectRatio = "16:9" } },
+            };
 
             var jsonContent = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
