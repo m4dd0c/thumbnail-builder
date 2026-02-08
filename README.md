@@ -4,6 +4,8 @@ A full-stack web application that leverages Google's Gemini 2.5 Flash Image API 
 
 ## 🌟 Overview
 
+![preview](./preview.mov)
+
 ThumbnailBuilder is an intelligent thumbnail generation platform that helps content creators design stunning YouTube thumbnails in seconds. The application uses advanced AI to understand your content requirements and generate multiple thumbnail variations optimized for YouTube's platform.
 
 ### Key Features
