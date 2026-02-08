@@ -60,7 +60,8 @@ class AuthService {
   }
 
   logout(): void {
-    this.removeAuthToken();
+    // Clear all localStorage data
+    localStorage.clear();
   }
 }
 

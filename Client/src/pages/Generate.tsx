@@ -88,6 +88,11 @@ export default function Generate() {
         const statusResponse = await thumbnailService.getJobStatus(activeJobId);
 
         if (statusResponse.status === "Completed" && statusResponse.images) {
+          // Immediately persist to localStorage before setting state
+          localStorage.setItem(
+            STORAGE_KEYS.GENERATED_IMAGES,
+            JSON.stringify(statusResponse.images),
+          );
           setGeneratedImages(statusResponse.images);
           setGenerationStatus("Generation complete!");
           localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
@@ -119,8 +124,14 @@ export default function Generate() {
           );
 
           if (finalStatus.status === "Completed" && finalStatus.images) {
+            // Immediately persist to localStorage before setting state
+            localStorage.setItem(
+              STORAGE_KEYS.GENERATED_IMAGES,
+              JSON.stringify(finalStatus.images),
+            );
             setGeneratedImages(finalStatus.images);
             setGenerationStatus("Generation complete!");
+            localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
 
             if (window.location.pathname !== "/generate") {
               toast.success("Generation completed!", {
@@ -137,9 +148,9 @@ export default function Generate() {
               finalStatus.errorMessage ||
                 "Generation failed. Please try again.",
             );
+            localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
+            toast.error("Generation failed, Please try again.");
           }
-          localStorage.removeItem(STORAGE_KEYS.ACTIVE_JOB);
-          toast.error("Generation failed, Please try again.");
         }
       } catch (err) {
         const apiError = err as ApiError;
@@ -154,7 +165,7 @@ export default function Generate() {
     };
 
     resumeActiveJob();
-  }, []); // Run only on mount
+  }, [route]); // Run only on mount
 
   // Handle file upload
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -223,6 +234,11 @@ export default function Generate() {
       );
 
       if (statusResponse.status === "Completed" && statusResponse.images) {
+        // Immediately persist to localStorage before setting state
+        localStorage.setItem(
+          STORAGE_KEYS.GENERATED_IMAGES,
+          JSON.stringify(statusResponse.images),
+        );
         setGeneratedImages(statusResponse.images);
         setGenerationStatus("Generation complete!");
         // Clear active job from localStorage
@@ -260,7 +276,19 @@ export default function Generate() {
   };
   // Remove generated image
   const removeGeneratedImage = (i: number) => {
-    setGeneratedImages((prev) => prev.filter((_, index) => index !== i));
+    setGeneratedImages((prev) => {
+      const updated = prev.filter((_, index) => index !== i);
+      // Update localStorage immediately
+      if (updated.length > 0) {
+        localStorage.setItem(
+          STORAGE_KEYS.GENERATED_IMAGES,
+          JSON.stringify(updated),
+        );
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.GENERATED_IMAGES);
+      }
+      return updated;
+    });
   };
 
   // Remove uploaded image
